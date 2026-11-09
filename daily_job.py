@@ -1,6 +1,7 @@
 import os
 import urllib.parse
 import pandas as pd
+import requests  # <-- This was missing! It allows Python to talk to Telegram
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from google import genai
@@ -8,6 +9,9 @@ from google import genai
 # 1. Setup Environment & Client
 load_dotenv()
 client = genai.Client()
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+PRO_CHAT_ID = os.getenv("PRO_CHAT_ID")
 
 # 2. Load the Clean Data
 try:
@@ -17,14 +21,12 @@ except FileNotFoundError:
     exit()
 
 # 3. Time Engine: Calculate Tomorrow's Date
-# We use %d-%m because that is the format we applied during data cleaning
 tomorrow = datetime.now() + timedelta(days=1)
 target_date = tomorrow.strftime("%d-%m") 
 
 print(f"--- Running Daily Birthday Scan for: {tomorrow.strftime('%B %d')} ---")
 
 # 4. Filter for tomorrow's birthdays
-# Convert the column to string just in case pandas read it as something else
 df['date_of_birth'] = df['date_of_birth'].astype(str)
 celebrants = df[df['date_of_birth'] == target_date]
 
@@ -40,7 +42,6 @@ for index, row in celebrants.iterrows():
     nickname = row['nickname']
     phone = str(row['whatsapp_no']).strip()
     
-    # Clean the phone number for the URL (remove any '+' symbols, WhatsApp URLs just want the raw digits)
     url_phone = phone.replace('+', '')
     
     # The Prompt Engine
@@ -57,18 +58,27 @@ for index, row in celebrants.iterrows():
     - Do NOT include any placeholders like [Your Name]. Sign off as "PEPSA PRO".
     """
     
-    # Generate the message with Gemini
     response = client.chats.create(model="gemini-3.8-flash").send_message(prompt)
     message_text = response.text.strip()
     
     # 6. Build the Zero-Cost Bridge (wa.me link)
-    # URL encoding converts spaces to %20, newlines to %0A, etc., so it works in a browser link
     encoded_message = urllib.parse.quote(message_text)
     whatsapp_link = f"https://wa.me/{url_phone}?text={encoded_message}"
     
-    # 7. Output for the PRO
+    # 7. Output to the PRO via Telegram
     print(f"🎂 Celebrant: {name} ({nickname})")
     print(f"📱 Phone: {phone}")
-    print(f"🤖 Agent Draft:\n{message_text}")
     print(f"🔗 CLICK TO SEND: {whatsapp_link}")
+    
+    # THIS is the magic code that was missing to actually ping your phone:
+    telegram_message = f"🎂 *Birthday Alert!*\n\n{name} ({nickname}) has a birthday tomorrow!\n\nTap here to send the picture request:\n{whatsapp_link}"
+    telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    
+    try:
+        response = requests.post(telegram_url, data={'chat_id': PRO_CHAT_ID, 'text': telegram_message, 'parse_mode': 'Markdown'})
+        response.raise_for_status()
+        print(f"✅ Telegram notification sent to PRO for {name}'s birthday.")
+    except Exception as e:
+        print(f"❌ Failed to send Telegram message for {name}: {e}")
+        
     print("-" * 50)
