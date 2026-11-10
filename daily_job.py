@@ -74,11 +74,18 @@ for index, row in celebrants.iterrows():
     telegram_message = f"🎂 *Birthday Alert!*\n\n{name} ({nickname}) has a birthday tomorrow!\n\nTap here to send the picture request:\n{whatsapp_link}"
     telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     
-    try:
-        response = requests.post(telegram_url, data={'chat_id': PRO_CHAT_ID, 'text': telegram_message, 'parse_mode': 'Markdown'})
-        response.raise_for_status()
-        print(f"✅ Telegram notification sent to PRO for {name}'s birthday.")
-    except Exception as e:
-        print(f"❌ Failed to send Telegram message for {name}: {e}")
-        
+  telegram_message = f"🎂 *Birthday Alert!*\n\n{name} ({nickname}) has a birthday tomorrow!\n\nTap here to send the picture request:\n{whatsapp_link}"
+    telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    
+    # Split the comma-separated IDs from your environment variable
+    chat_ids = PRO_CHAT_ID.split(',')
+    
+    for chat_id in chat_ids:
+        try:
+            response = requests.post(telegram_url, data={'chat_id': chat_id.strip(), 'text': telegram_message, 'parse_mode': 'Markdown'})
+            response.raise_for_status()
+            print(f"✅ Telegram notification sent to ID {chat_id.strip()} for {name}'s birthday.")
+        except Exception as e:
+            print(f"❌ Failed to send Telegram message to ID {chat_id.strip()}: {e}")
+            
     print("-" * 50)
