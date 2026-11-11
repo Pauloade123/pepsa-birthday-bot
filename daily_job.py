@@ -69,7 +69,7 @@ def process_celebrants(celebrants, day_type):
             """
             
         # Generate the message
-        response = client.chats.create(model="gemini-1.5-flash").send_message(prompt)
+        response = client.chats.create(model="gemini-3.5-flash").send_message(prompt)
         message_text = response.text.strip()
         
         # Build the URL
